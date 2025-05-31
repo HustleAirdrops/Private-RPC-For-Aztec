@@ -184,7 +184,7 @@ sudo ufw allow 22 && sudo ufw allow ssh && sudo ufw allow 8545/tcp && sudo ufw a
 | Targets            | Specified target tags              |
 | Target tags        | allow-rpc                          |
 | Source IP ranges   | 0.0.0.0/0                          |
-| Protocols and ports| tcp:8545-8551,30303, udp:30303     |
+| Protocols and ports| tcp:3500,4000,8545-8551,30303, udp:30303     |
 
 4. Click **Create**
 
