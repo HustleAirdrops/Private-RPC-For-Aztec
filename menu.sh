@@ -219,26 +219,35 @@ print_endpoints() {
 check_node_status() {
   echo -e "${CYAN}🔍 Checking Ethereum Sepolia node status...${NC}"
   
+  # Fetch Geth sync status
   geth_sync=$(curl -s -X POST -H "Content-Type: application/json" \
     --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' http://$IP_ADDR:8545 || echo "")
   
+  # Fetch Prysm sync status
   prysm_sync=$(curl -s http://$IP_ADDR:3500/eth/v1/node/syncing || echo "")
 
+  # Check Geth (Execution Layer) sync status
   if [[ "$geth_sync" == *"false"* ]]; then
     echo -e "✅ ${GREEN}Geth (Execution Layer) is fully synced.${NC}"
   else
-    current=$(echo "$geth_sync" | jq -r .result.currentBlock)
-    highest=$(echo "$geth_sync" | jq -r .result.highestBlock)
+    # Extract current and highest block numbers as decimal values
+    current_dec=$(echo "$geth_sync" | jq -r '.result.currentBlock | if . then tonumber else empty end')
+    highest_dec=$(echo "$geth_sync" | jq -r '.result.highestBlock | if . then tonumber else empty end')
 
-    # Check for valid values before division
-    if [[ -n "$current" && -n "$highest" && "$highest" != "0x0" ]]; then
-      percent=$(awk "BEGIN {printf \"%.2f\", (0x${current}/0x${highest})*100}")
-      echo -e "🔄 ${YELLOW}Geth is syncing: Block $current of $highest (~$percent%)${NC}"
+    # Check if values are valid and calculate sync progress
+    if [[ -n "$current_dec" && -n "$highest_dec" ]]; then
+      if [[ $highest_dec -gt 0 ]]; then
+        percent=$(awk "BEGIN {printf \"%.2f\", ($current_dec/$highest_dec)*100}")
+        echo -e "🔄 ${YELLOW}Geth is syncing: Block $current_dec of $highest_dec (~$percent%)${NC}"
+      else
+        echo -e "${RED}⚠️ Could not calculate sync progress (highest block is zero).${NC}"
+      fi
     else
-      echo -e "${RED}⚠️ Could not calculate sync progress (missing or zero values).${NC}"
+      echo -e "${RED}⚠️ Could not fetch Geth sync status (missing or invalid values).${NC}"
     fi
   fi
 
+  # Check Prysm (Consensus Layer) sync status
   distance=$(echo "$prysm_sync" | jq -r '.data.sync_distance // empty')
   head=$(echo "$prysm_sync" | jq -r '.data.head_slot // empty')
 
@@ -251,9 +260,6 @@ check_node_status() {
   fi
   echo ""
 }
-
-
-
 print_rpc_endpoints() {
   echo -e "${CYAN}\n🔗 Ethereum Sepolia RPC Endpoints:${NC}"
   echo -e "${GREEN}📎 Geth:     http://$IP_ADDR:8545${NC}"
