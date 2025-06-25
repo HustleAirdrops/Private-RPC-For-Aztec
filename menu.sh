@@ -315,7 +315,7 @@ handle_choice() {
       if [ -f "$BASE_DIR/docker-compose.yml" ]; then
         cd "$BASE_DIR"
         echo -e "${YELLOW}📜 Showing logs... Ctrl+C to exit.${NC}"
-        docker compose logs -f
+        sudo docker compose logs -f
       else
         echo -e "${RED}❌ No docker-compose.yml found. Please run installation first.${NC}"
       fi
