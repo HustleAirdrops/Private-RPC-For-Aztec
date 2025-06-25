@@ -119,8 +119,8 @@ create_directories() {
 }
 
 write_compose_file() {
-  echo -e "${YELLOW}📝 Writing docker-compose.yml...${NC}"
-  cat > "$BASE_DIR/docker-compose.yml" <<EOF
+   echo -e "${YELLOW}📝 Writing docker-compose.yml...${NC}"
+   sudo tee "$BASE_DIR/docker-compose.yml" > /dev/null <<EOF
 version: '3.8'
 services:
   execution:
