@@ -218,8 +218,10 @@ print_endpoints() {
 
 check_node_status() {
   echo -e "${CYAN}🔍 Checking Ethereum Sepolia node status...${NC}"
+  
   geth_sync=$(curl -s -X POST -H "Content-Type: application/json" \
     --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' http://$IP_ADDR:8545 || echo "")
+  
   prysm_sync=$(curl -s http://$IP_ADDR:3500/eth/v1/node/syncing || echo "")
 
   if [[ "$geth_sync" == *"false"* ]]; then
@@ -227,19 +229,29 @@ check_node_status() {
   else
     current=$(echo "$geth_sync" | jq -r .result.currentBlock)
     highest=$(echo "$geth_sync" | jq -r .result.highestBlock)
-    percent=$(awk "BEGIN {printf \"%.2f\", (0x${current}/0x${highest})*100}")
-    echo -e "🔄 ${YELLOW}Geth is syncing: Block $current of $highest (~$percent%)${NC}"
+
+    # Check for valid values before division
+    if [[ -n "$current" && -n "$highest" && "$highest" != "0x0" ]]; then
+      percent=$(awk "BEGIN {printf \"%.2f\", (0x${current}/0x${highest})*100}")
+      echo -e "🔄 ${YELLOW}Geth is syncing: Block $current of $highest (~$percent%)${NC}"
+    else
+      echo -e "${RED}⚠️ Could not calculate sync progress (missing or zero values).${NC}"
+    fi
   fi
 
-  distance=$(echo "$prysm_sync" | jq -r '.data.sync_distance' 2>/dev/null || echo "")
-  head=$(echo "$prysm_sync" | jq -r '.data.head_slot' 2>/dev/null || echo "")
+  distance=$(echo "$prysm_sync" | jq -r '.data.sync_distance // empty')
+  head=$(echo "$prysm_sync" | jq -r '.data.head_slot // empty')
+
   if [[ "$distance" == "0" ]]; then
     echo -e "✅ ${GREEN}Prysm (Consensus Layer) is fully synced.${NC}"
-  else
+  elif [[ -n "$distance" ]]; then
     echo -e "🔄 ${YELLOW}Prysm is syncing: $distance slots behind (head: $head)${NC}"
+  else
+    echo -e "${RED}⚠️ Could not fetch Prysm sync status.${NC}"
   fi
   echo ""
 }
+
 
 
 print_rpc_endpoints() {
