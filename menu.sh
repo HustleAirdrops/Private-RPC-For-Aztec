@@ -174,7 +174,7 @@ EOF
 start_services() {
   echo -e "${CYAN}🚀 Starting Ethereum Sepolia services...${NC}"
   cd "$BASE_DIR"
-  docker compose up -d
+  sudo docker compose up -d
   echo -e "${GREEN}✅ Services started.${NC}"
 }
 
