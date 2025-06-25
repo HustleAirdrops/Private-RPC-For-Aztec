@@ -48,12 +48,25 @@ print_banner() {
 
 install_dependencies() {
   echo -e "${YELLOW}🔧 Installing required packages...${NC}"
-  apt update -y && apt upgrade -y
-  local packages=(curl jq net-tools iptables build-essential git wget lz4 make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip ufw openssl)
+  sudo apt update -y && sudo apt upgrade -y
+
+  # Fix common lock issues
+  sudo rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock-frontend
+  sudo dpkg --configure -a
+
+  local packages=(
+    curl jq net-tools iptables build-essential git wget lz4 make gcc nano
+    automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev
+    libleveldb-dev tar clang bsdmainutils ncdu unzip ufw openssl
+  )
+
   for pkg in "${packages[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-      apt-get install -y "$pkg"
-      echo -e "${GREEN}✅ Installed $pkg${NC}"
+      echo -e "${BLUE}🔄 Installing $pkg...${NC}"
+      sudo apt-get install -y "$pkg"
+      echo -e "${GREEN}✅ $pkg installed${NC}"
+    else
+      echo -e "${CYAN}✔️ $pkg already present${NC}"
     fi
   done
 }
@@ -61,40 +74,48 @@ install_dependencies() {
 install_docker() {
   if ! command -v docker &>/dev/null; then
     echo -e "${CYAN}🐳 Installing Docker...${NC}"
-    apt-get remove docker docker-engine docker.io containerd runc -y || true
-    apt-get install -y ca-certificates gnupg
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-      | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    apt-get update -y
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    systemctl enable docker
-    systemctl restart docker
-    echo -e "${GREEN}✅ Docker installed${NC}"
+    sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
+    sudo apt-get install -y ca-certificates gnupg
+
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+      | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    sudo apt-get update -y
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    sudo systemctl enable docker
+    sudo systemctl restart docker
+
+    echo -e "${GREEN}✅ Docker installed successfully${NC}"
   else
     echo -e "${CYAN}ℹ️ Docker already installed. Skipping.${NC}"
   fi
 }
 
 check_ports() {
-  echo -e "${YELLOW}🕵️ Checking port availability...${NC}"
+  echo -e "${YELLOW}🕵️ Checking required ports...${NC}"
   local conflicts
-  conflicts=$(netstat -tuln | grep -E '30303|8545|8546|8551|4000|3500' || true)
+  conflicts=$(sudo netstat -tuln | grep -E '30303|8545|8546|8551|4000|3500' || true)
+
   if [ -n "$conflicts" ]; then
-    echo -e "${RED}❌ Ports in use. Please resolve conflicts:\n$conflicts${NC}"
+    echo -e "${RED}❌ Ports already in use:\n$conflicts${NC}"
     exit 1
+  else
+    echo -e "${GREEN}✅ All required ports are available.${NC}"
   fi
-  echo -e "${GREEN}✅ Required ports are free.${NC}"
 }
 
 create_directories() {
-  echo -e "${YELLOW}📁 Preparing directories...${NC}"
-  mkdir -p "$BASE_DIR/execution" "$BASE_DIR/consensus"
-  rm -f "$JWT_PATH"
-  openssl rand -hex 32 > "$JWT_PATH"
-  echo -e "${GREEN}✅ JWT secret created.${NC}"
+  echo -e "${YELLOW}📁 Setting up directory structure...${NC}"
+  sudo mkdir -p "$BASE_DIR/execution" "$BASE_DIR/consensus"
+  sudo rm -f "$JWT_PATH"
+  sudo openssl rand -hex 32 | sudo tee "$JWT_PATH" > /dev/null
+  echo -e "${GREEN}✅ JWT secret created at $JWT_PATH${NC}"
 }
 
 write_compose_file() {
