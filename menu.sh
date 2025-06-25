@@ -34,7 +34,7 @@ print_banner() {
     echo -e "${YELLOW}              GitHub: https://github.com/HustleAirdrops${NC}"
     echo -e "${YELLOW}              Telegram: https://t.me/Hustle_Airdrops${NC}"
     echo -e "${GREEN}===============================================================================${NC}"
-    echo -e "${BLUE}=============================================="
+    
     echo -e "  📡 Ethereum Sepolia Full Node Setup Menu"
     echo -e "  🔗 Geth (Execution) + Prysm (Beacon Chain)"
     echo -e "==============================================${NC}"
