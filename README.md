@@ -52,7 +52,7 @@ When you run the script, you’ll see:
 5) ❌ Exit
 ```
 
-- **1) Install & Start Node:** Installs all dependencies and starts your Sepolia node.
+- **1) Install & Start Rpc Sync:** Installs all dependencies and starts your Sepolia node.
 - **2) View Logs:** Shows real-time logs for troubleshooting or monitoring.
 - **3) Check Node Status:** Displays sync status and health of your node.
 - **4) Get RPC URLs:** Shows your node’s RPC endpoints for easy access.
