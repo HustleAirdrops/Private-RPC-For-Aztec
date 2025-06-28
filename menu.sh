@@ -37,7 +37,7 @@ print_banner() {
     echo -e "  📡 Ethereum Sepolia Full Node Setup Menu"
     echo -e "  🔗 Geth (Execution) + Prysm (Beacon Chain)"
     echo -e "==============================================${NC}"
-    echo "1) 🚀 Install & Start Node"
+    echo "1) 🚀 Install & Start Rpc Sync"
     echo "2) 📜 View Logs"
     echo "3) 📶 Check Node Status"
     echo "4) 🔗 Get RPC URLs"
