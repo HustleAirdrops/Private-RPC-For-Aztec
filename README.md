@@ -90,5 +90,5 @@ sudo docker compose -f /opt/eth-rpc-node/docker-compose.yml down -v && sudo rm -
 ---
 
 <p align="center">
-    Made By <b>AJ</b> 💖
+    Made By <b>Aashish</b> 💖
 </p>
