@@ -201,6 +201,8 @@ monitor_sync() {
       HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
       START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
 
+      [[ "$CURRENT" -ge "$HIGHEST" ]] && IS_SYNCING="false"
+
       PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT/$HIGHEST)*100}")
       REMAINING=$((HIGHEST - CURRENT))
 
@@ -209,7 +211,7 @@ monitor_sync() {
       block_diff=$((CURRENT - last_block))
       eta_msg="⏱️ Estimating time left..."
 
-      if (( time_diff > 0 && block_diff > 0 )); then
+      if (( time_diff > 0 && block_diff > 0 && REMAINING > 0 )); then
         blocks_per_sec=$(awk "BEGIN {printf \"%.4f\", $block_diff / $time_diff}")
         seconds_left=$(awk "BEGIN {printf \"%d\", $REMAINING / $blocks_per_sec}")
         hours_left=$((seconds_left / 3600))
@@ -243,6 +245,7 @@ monitor_sync() {
 }
 
 
+
 print_endpoints() {
   echo -e "${CYAN}\n🔗 Ethereum Sepolia RPC Endpoints:${NC}"
   echo -e "${GREEN}📎 Geth:     http://$IP_ADDR:8545${NC}"
@@ -270,12 +273,15 @@ check_node_status() {
       HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
       START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
 
+      # 👇 Override syncing if current >= highest
+      [[ "$CURRENT" -ge "$HIGHEST" ]] && IS_SYNCING="false"
+
       PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT/$HIGHEST)*100}")
       REMAINING=$((HIGHEST - CURRENT))
       elapsed=$(( $(date +%s) - start_time ))
 
       eta_fmt=""
-      if [[ $CURRENT -gt 0 && $elapsed -gt 0 ]]; then
+      if [[ $CURRENT -gt 0 && $elapsed -gt 0 && $REMAINING -gt 0 ]]; then
         speed=$(awk "BEGIN { if ($elapsed > 0) printf \"%.4f\", $CURRENT / $elapsed; else print 0 }")
         if (( $(awk "BEGIN {print ($speed > 0)}") )); then
           eta=$(awk "BEGIN {printf \"%d\", $REMAINING / $speed}")
