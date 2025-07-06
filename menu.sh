@@ -122,6 +122,7 @@ write_compose_file() {
    echo -e "${YELLOW}📝 Writing docker-compose.yml...${NC}"
    sudo tee "$BASE_DIR/docker-compose.yml" > /dev/null <<EOF
 version: '3.8'
+
 services:
   execution:
     image: ethereum/client-go:stable
@@ -134,12 +135,12 @@ services:
     command:
       - --sepolia
       - --http
-      - --http.api=eth,net,web3
       - --http.addr=0.0.0.0
+      - --http.api=eth,net,web3
       - --authrpc.addr=0.0.0.0
-      - --authrpc.vhosts=*
       - --authrpc.jwtsecret=/data/jwt.hex
       - --authrpc.port=8551
+      - --authrpc.vhosts=*
       - --syncmode=snap
       - --datadir=/data
 
@@ -159,12 +160,11 @@ services:
       - --datadir=/data
       - --disable-monitoring
       - --rpc-host=0.0.0.0
-      - --execution-endpoint=http://$IP_ADDR:8551
-      - --jwt-secret=/data/jwt.hex
       - --rpc-port=4000
       - --grpc-gateway-host=0.0.0.0
       - --grpc-gateway-port=3500
-      - --min-sync-peers=3
+      - --execution-endpoint=http://127.0.0.1:8551
+      - --jwt-secret=/data/jwt.hex
       - --checkpoint-sync-url=https://checkpoint-sync.sepolia.ethpandaops.io
       - --genesis-beacon-api-url=https://checkpoint-sync.sepolia.ethpandaops.io
 EOF
