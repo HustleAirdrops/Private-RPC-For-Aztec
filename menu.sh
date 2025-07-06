@@ -9,6 +9,7 @@ YELLOW="\033[1;33m"
 CYAN="\033[1;36m"
 RED="\033[1;31m"
 NC="\033[0m"
+BOLD="\033[1m"
 
 BASE_DIR="/opt/eth-rpc-node"
 JWT_PATH="$BASE_DIR/jwt.hex"
