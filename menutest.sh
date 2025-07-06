@@ -273,12 +273,12 @@ check_node_status() {
       PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT/$HIGHEST)*100}")
       REMAINING=$((HIGHEST - CURRENT))
       elapsed=$(( $(date +%s) - start_time ))
-      
+
       eta_fmt=""
       if [[ $CURRENT -gt 0 && $elapsed -gt 0 ]]; then
-        speed=$(( CURRENT / elapsed ))
-        if [[ $speed -gt 0 ]]; then
-          eta=$(( REMAINING / speed ))
+        speed=$(awk "BEGIN { if ($elapsed > 0) printf \"%.4f\", $CURRENT / $elapsed; else print 0 }")
+        if (( $(awk "BEGIN {print ($speed > 0)}") )); then
+          eta=$(awk "BEGIN {printf \"%d\", $REMAINING / $speed}")
           eta_fmt=$(printf "%02d:%02d:%02d" $((eta/3600)) $((eta%3600/60)) $((eta%60)))
         fi
       fi
@@ -313,6 +313,7 @@ check_node_status() {
     sleep 10
   done
 }
+
 
 print_rpc_endpoints() {
   echo -e "${CYAN}\n🔗 Ethereum Sepolia RPC Endpoints:${NC}"
