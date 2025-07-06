@@ -3,12 +3,13 @@
 set -euo pipefail
 trap 'echo -e "\033[1;31m❌ Error occurred at line $LINENO. Exiting.\033[0m"' ERR
 
-GREEN="\033[1;32m"
-BLUE="\033[1;34m"
-YELLOW="\033[1;33m"
-CYAN="\033[1;36m"
 RED="\033[1;31m"
-NC="\033[0m"
+GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
+CYAN="\033[1;36m"
+WHITE="\033[1;37m"
+NC="\033[0m"     # Reset / No Color
 BOLD="\033[1m"
 
 BASE_DIR="/opt/eth-rpc-node"
