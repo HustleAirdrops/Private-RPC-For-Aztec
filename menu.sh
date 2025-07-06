@@ -333,30 +333,23 @@ print_rpc_endpoints() {
   geth_sync=$(curl -s -X POST -H "Content-Type: application/json" \
     --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' http://$IP_ADDR:8545)
 
-  if [[ "$geth_sync" == *"false"* ]]; then
-    block_data=$(curl -s -X POST -H "Content-Type: application/json" \
-      --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://$IP_ADDR:8545)
-    current_hex=$(echo "$block_data" | jq -r '.result')
-    current_dec=$((16#${current_hex:2}))
+  current_hex=$(echo "$geth_sync" | jq -r '.result.currentBlock // "0x0"')
+  highest_hex=$(echo "$geth_sync" | jq -r '.result.highestBlock // "0x0"')
+
+  current_dec=$((16#${current_hex:2}))
+  highest_dec=$((16#${highest_hex:2}))
+  remaining=$(( highest_dec > current_dec ? highest_dec - current_dec : 0 ))
+
+  if (( current_dec >= highest_dec || remaining <= 3 )); then
     echo -e "✅ ${GREEN}Geth (Execution Layer): Fully Synced at Block $current_dec!${NC}"
     geth_synced=true
   else
-    current_hex=$(echo "$geth_sync" | jq -r '.result.currentBlock')
-    highest_hex=$(echo "$geth_sync" | jq -r '.result.highestBlock')
-
-    current_dec=$((16#${current_hex:2}))
-    highest_dec=$((16#${highest_hex:2}))
-    remaining=$((highest_dec - current_dec))
-    percent=$(awk "BEGIN {printf \"%.2f\", ($current_dec/$highest_dec)*100}")
-    [[ $remaining -lt 0 ]] && remaining=0
-    [[ $percent == "nan" ]] && percent="0.00"
-
+    percent=$(awk "BEGIN { if ($highest_dec > 0) printf \"%.2f\", ($current_dec/$highest_dec)*100; else print \"0.00\" }")
     echo -e "🔄 ${YELLOW}Geth Syncing...${NC}"
     echo -e "   ⏳ Current Block : $current_dec"
     echo -e "   🚀 Highest Block : $highest_dec"
     echo -e "   ⌛ Remaining      : $remaining blocks"
     echo -e "   📊 Progress       : ${GREEN}$percent%${NC}"
-
     geth_synced=false
   fi
 
@@ -383,6 +376,7 @@ print_rpc_endpoints() {
     echo -e "\n${RED}⚠️  Node is still syncing... please wait until both layers are ready.${NC}"
   fi
 }
+
 
 access_controller() {
   trap 'echo -e "\n${RED}👋 Exiting Access Controller...${NC}"; return' SIGINT
