@@ -126,26 +126,24 @@ version: '3.8'
 
 services:
   execution:
-    image: thorax/erigon:latest
-    container_name: erigon
+    image: ethereum/client-go:stable
+    container_name: geth
     network_mode: host
     restart: unless-stopped
     volumes:
       - ./execution:/data
       - ./jwt.hex:/data/jwt.hex
     command:
-      - --chain=sepolia
-      - --datadir=/data
+      - --sepolia
       - --http
       - --http.addr=0.0.0.0
       - --http.api=eth,net,web3
-      - --ws
-      - --ws.addr=0.0.0.0
       - --authrpc.addr=0.0.0.0
+      - --authrpc.jwtsecret=/data/jwt.hex
       - --authrpc.port=8551
       - --authrpc.vhosts=*
-      - --authrpc.jwtsecret=/data/jwt.hex
-      - --metrics
+      - --syncmode=snap
+      - --datadir=/data
 
   consensus:
     image: gcr.io/prysmaticlabs/prysm/beacon-chain:stable
@@ -166,7 +164,7 @@ services:
       - --rpc-port=4000
       - --grpc-gateway-host=0.0.0.0
       - --grpc-gateway-port=3500
-      - --execution-endpoint=http://$IP_ADDR:8551
+      - --execution-endpoint=http://127.0.0.1:8551
       - --jwt-secret=/data/jwt.hex
       - --checkpoint-sync-url=https://checkpoint-sync.sepolia.ethpandaops.io
       - --genesis-beacon-api-url=https://checkpoint-sync.sepolia.ethpandaops.io
