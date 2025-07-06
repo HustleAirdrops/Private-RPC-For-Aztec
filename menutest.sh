@@ -194,29 +194,30 @@ monitor_sync() {
     SYNC=$(curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
       -H "Content-Type: application/json" http://localhost:8545)
 
-    CURRENT=$(echo "$SYNC" | jq -r '.result.currentBlock // 0' | xargs printf "%d\n")
-    HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
-    START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
+    IS_SYNCING=$(echo "$SYNC" | jq -r '.result != false')
 
-    if [[ "$CURRENT" == "0" || "$HIGHEST" == "0" ]]; then
-      echo -e "❌ Node is not syncing or not started properly."
-    else
+    if [[ "$IS_SYNCING" == "true" ]]; then
+      CURRENT=$(echo "$SYNC" | jq -r '.result.currentBlock // 0' | xargs printf "%d\n")
+      HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
+      START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
+
       PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT/$HIGHEST)*100}")
       REMAINING=$((HIGHEST - CURRENT))
+
       current_time=$(date +%s)
       time_diff=$((current_time - last_time))
       block_diff=$((CURRENT - last_block))
-      blocks_per_sec=0
+      eta_msg="⏱️ Estimating time left..."
 
       if (( time_diff > 0 && block_diff > 0 )); then
         blocks_per_sec=$(awk "BEGIN {printf \"%.4f\", $block_diff / $time_diff}")
         seconds_left=$(awk "BEGIN {printf \"%d\", $REMAINING / $blocks_per_sec}")
-        minutes_left=$((seconds_left / 60))
-        hours_left=$((minutes_left / 60))
-        echo -e "⏱️ Estimated Time Left : ${GREEN}${hours_left}h ${minutes_left}%60m${NC}"
-      else
-        echo -e "⏱️ Estimating time left..."
+        hours_left=$((seconds_left / 3600))
+        minutes_left=$(((seconds_left % 3600) / 60))
+        eta_msg="⏱️ Estimated Time Left : ${GREEN}${hours_left}h ${minutes_left}m${NC}"
       fi
+
+      echo -e "$eta_msg"
 
       last_block=$CURRENT
       last_time=$current_time
@@ -226,19 +227,20 @@ monitor_sync() {
       echo -e "🚀 Highest Block  : $HIGHEST"
       echo -e "🧮 Remaining      : $REMAINING"
       echo -e "📈 Sync Progress  : ${GREEN}${PROGRESS}%${NC}"
+    else
+      echo -e "${GREEN}✅ Geth is fully synced or syncing hasn't started yet.${NC}"
     fi
 
     echo -e "\n${YELLOW}🟣 Beacon Node Status (Prysm)...${NC}"
-    curl -s http://localhost:3500/eth/v1/node/syncing | jq
+    PRYSM=$(curl -s http://localhost:3500/eth/v1/node/syncing)
+    echo "$PRYSM" | jq
 
     echo -e "\n⏲️  Updated: $(date)"
-
-    [[ "$SYNC" == *"false"* && "$(curl -s http://localhost:3500/eth/v1/node/syncing | jq -r '.data.sync_distance')" == "0" ]] && break
+    [[ "$IS_SYNCING" == "false" && "$(echo "$PRYSM" | jq -r '.data.sync_distance')" == "0" ]] && break
 
     sleep 10
   done
 }
-
 
 
 print_endpoints() {
@@ -261,23 +263,25 @@ check_node_status() {
     SYNC=$(curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
       -H "Content-Type: application/json" http://localhost:8545)
 
-    CURRENT=$(echo "$SYNC" | jq -r '.result.currentBlock // 0' | xargs printf "%d\n")
-    HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
-    START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
+    IS_SYNCING=$(echo "$SYNC" | jq -r '.result != false')
 
-    if [[ "$CURRENT" == "0" || "$HIGHEST" == "0" ]]; then
-      echo -e "${RED}❌ Node is not syncing or not started properly.${NC}"
-    else
+    if [[ "$IS_SYNCING" == "true" ]]; then
+      CURRENT=$(echo "$SYNC" | jq -r '.result.currentBlock // 0' | xargs printf "%d\n")
+      HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
+      START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
+
       PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT/$HIGHEST)*100}")
       REMAINING=$((HIGHEST - CURRENT))
       elapsed=$(( $(date +%s) - start_time ))
-      [[ $CURRENT -gt 0 && $elapsed -gt 0 ]] && {
+      
+      eta_fmt=""
+      if [[ $CURRENT -gt 0 && $elapsed -gt 0 ]]; then
         speed=$(( CURRENT / elapsed ))
-        [[ $speed -gt 0 ]] && {
+        if [[ $speed -gt 0 ]]; then
           eta=$(( REMAINING / speed ))
           eta_fmt=$(printf "%02d:%02d:%02d" $((eta/3600)) $((eta%3600/60)) $((eta%60)))
-        }
-      }
+        fi
+      fi
 
       echo -e "🧱 Starting Block : $START"
       echo -e "⏳ Current Block  : $CURRENT"
@@ -285,6 +289,8 @@ check_node_status() {
       echo -e "🧮 Remaining      : $REMAINING"
       echo -e "📈 Sync Progress  : ${GREEN}${PROGRESS}%${NC}"
       [[ -n "$eta_fmt" ]] && echo -e "⏱️ Estimated Time  : ${YELLOW}${eta_fmt}${NC}"
+    else
+      echo -e "${GREEN}✅ Geth is fully synced!${NC}"
     fi
 
     echo -e "\n${YELLOW}🟣 Beacon Node Status (Prysm)...${NC}"
@@ -293,7 +299,7 @@ check_node_status() {
 
     DISTANCE=$(echo "$PRYSM" | jq -r '.data.sync_distance // "1"')
 
-    if [[ "$SYNC" == *"false"* && "$DISTANCE" == "0" ]]; then
+    if [[ "$IS_SYNCING" == "false" && "$DISTANCE" == "0" ]]; then
       echo -e "\n${GREEN}✅ Both Geth and Prysm are fully synced!${NC}"
       echo -e "${CYAN}\n🔗 Ethereum Sepolia RPC Endpoints:${NC}"
       echo -e "${GREEN}📎 Geth:     http://$IP_ADDR:8545${NC}"
@@ -302,12 +308,11 @@ check_node_status() {
       break
     fi
 
-    echo -e "\n⏲️ Updated: $(date)"
+    echo -e "\n⏲️  Updated: $(date)"
     echo -e "🔁 Next check in 10 seconds..."
     sleep 10
   done
 }
-
 
 print_rpc_endpoints() {
   echo -e "${CYAN}\n🔗 Ethereum Sepolia RPC Endpoints:${NC}"
