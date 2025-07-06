@@ -181,7 +181,7 @@ start_services() {
   cd "$BASE_DIR"
   sudo docker compose up -d
   echo -e "${GREEN}✅ Services started.${NC}"
-  echo -e "${GREEN}✅ Node is syncing now. Estimated time: 4-5 hours${NC}"
+  echo -e "${GREEN}✅ Node is syncing now... Check Status in 2-3 mins... Estimated Completion time: 4-5 hours${NC}"
 }
 
 monitor_sync() {
@@ -268,37 +268,49 @@ check_node_status() {
     SYNC=$(curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
       -H "Content-Type: application/json" http://localhost:8545)
 
-    IS_SYNCING=$(echo "$SYNC" | jq -r '.result != false')
+    SYNC_RESULT=$(echo "$SYNC" | jq -r '.result')
 
-    if [[ "$IS_SYNCING" == "true" ]]; then
-      CURRENT=$(echo "$SYNC" | jq -r '.result.currentBlock // 0' | xargs printf "%d\n")
-      HIGHEST=$(echo "$SYNC" | jq -r '.result.highestBlock // 0' | xargs printf "%d\n")
-      START=$(echo "$SYNC" | jq -r '.result.startingBlock // 0' | xargs printf "%d\n")
-
-      # 👇 Override syncing if current >= highest
-      [[ "$CURRENT" -ge "$HIGHEST" ]] && IS_SYNCING="false"
-
-      PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT/$HIGHEST)*100}")
-      REMAINING=$((HIGHEST - CURRENT))
-      elapsed=$(( $(date +%s) - start_time ))
-
-      eta_fmt=""
-      if [[ $CURRENT -gt 0 && $elapsed -gt 0 && $REMAINING -gt 0 ]]; then
-        speed=$(awk "BEGIN { if ($elapsed > 0) printf \"%.4f\", $CURRENT / $elapsed; else print 0 }")
-        if (( $(awk "BEGIN {print ($speed > 0)}") )); then
-          eta=$(awk "BEGIN {printf \"%d\", $REMAINING / $speed}")
-          eta_fmt=$(printf "%02d:%02d:%02d" $((eta/3600)) $((eta%3600/60)) $((eta%60)))
-        fi
-      fi
-
-      echo -e "🧱 Starting Block : $START"
-      echo -e "⏳ Current Block  : $CURRENT"
-      echo -e "🚀 Highest Block  : $HIGHEST"
-      echo -e "🧮 Remaining      : $REMAINING"
-      echo -e "📈 Sync Progress  : ${GREEN}${PROGRESS}%${NC}"
-      [[ -n "$eta_fmt" ]] && echo -e "⏱️ Estimated Time  : ${YELLOW}${eta_fmt}${NC}"
+    if [[ "$SYNC_RESULT" == "false" ]]; then
+      BLOCK_HEX=$(curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+        -H "Content-Type: application/json" http://localhost:8545 | jq -r '.result')
+      BLOCK_NUM=$((16#${BLOCK_HEX:2}))
+      echo -e "${GREEN}✅ Geth is fully synced at block $BLOCK_NUM!${NC}"
+      IS_SYNCING="false"
     else
-      echo -e "${GREEN}✅ Geth is fully synced!${NC}"
+      CURRENT=$(echo "$SYNC_RESULT" | jq -r '.currentBlock // "0x0"')
+      HIGHEST=$(echo "$SYNC_RESULT" | jq -r '.highestBlock // "0x1"')
+      START=$(echo "$SYNC_RESULT" | jq -r '.startingBlock // "0x0"')
+
+      CURRENT_DEC=$((16#${CURRENT:2}))
+      HIGHEST_DEC=$((16#${HIGHEST:2}))
+      START_DEC=$((16#${START:2}))
+
+      # If current >= highest, consider it synced
+      if [[ "$CURRENT_DEC" -ge "$HIGHEST_DEC" ]]; then
+        IS_SYNCING="false"
+        echo -e "${GREEN}✅ Geth just finished syncing at block $CURRENT_DEC!${NC}"
+      else
+        IS_SYNCING="true"
+        REMAINING=$((HIGHEST_DEC - CURRENT_DEC))
+        PROGRESS=$(awk "BEGIN {printf \"%.2f\", ($CURRENT_DEC/$HIGHEST_DEC)*100}")
+        elapsed=$(( $(date +%s) - start_time ))
+
+        eta_fmt=""
+        if [[ $elapsed -gt 0 && $REMAINING -gt 0 ]]; then
+          speed=$(awk "BEGIN { printf \"%.4f\", $CURRENT_DEC / $elapsed }")
+          if (( $(awk "BEGIN {print ($speed > 0)}") )); then
+            eta=$(awk "BEGIN {printf \"%d\", $REMAINING / $speed}")
+            eta_fmt=$(printf "%02d:%02d:%02d" $((eta/3600)) $((eta%3600/60)) $((eta%60)))
+          fi
+        fi
+
+        echo -e "🧱 Starting Block : $START_DEC"
+        echo -e "⏳ Current Block  : $CURRENT_DEC"
+        echo -e "🚀 Highest Block  : $HIGHEST_DEC"
+        echo -e "🧮 Remaining      : $REMAINING"
+        echo -e "📈 Sync Progress  : ${GREEN}${PROGRESS}%${NC}"
+        [[ -n "$eta_fmt" ]] && echo -e "⏱️ Estimated Time  : ${YELLOW}${eta_fmt}${NC}"
+      fi
     fi
 
     echo -e "\n${YELLOW}🟣 Beacon Node Status (Prysm)...${NC}"
@@ -341,6 +353,9 @@ print_rpc_endpoints() {
     current_hex=$(echo "$geth_sync" | jq -r '.result.currentBlock // "0x0"')
     highest_hex=$(echo "$geth_sync" | jq -r '.result.highestBlock // "0x0"')
 
+    current_hex="${current_hex:-0x0}"
+    highest_hex="${highest_hex:-0x1}"
+
     current_dec=$((16#${current_hex:2}))
     highest_dec=$((16#${highest_hex:2}))
     remaining=$(( highest_dec > current_dec ? highest_dec - current_dec : 0 ))
@@ -357,6 +372,7 @@ print_rpc_endpoints() {
     block_data=$(curl -s -X POST -H "Content-Type: application/json" \
       --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://$IP_ADDR:8545)
     current_hex=$(echo "$block_data" | jq -r '.result // "0x0"')
+    current_hex="${current_hex:-0x0}"
     current_dec=$((16#${current_hex:2}))
     echo -e "✅ ${GREEN}Geth (Execution Layer): Fully Synced at Block $current_dec!${NC}"
     geth_synced=true
@@ -367,6 +383,9 @@ print_rpc_endpoints() {
 
   distance=$(echo "$prysm_sync" | jq -r '.data.sync_distance // "0"' 2>/dev/null)
   head_slot=$(echo "$prysm_sync" | jq -r '.data.head_slot // "0"' 2>/dev/null)
+
+  distance="${distance:-0}"
+  head_slot="${head_slot:-0}"
 
   if [[ "$distance" == "0" ]]; then
     echo -e "✅ ${GREEN}Prysm (Consensus Layer): Fully Synced${NC}"
@@ -385,7 +404,6 @@ print_rpc_endpoints() {
     echo -e "\n${RED}⚠️  Node is still syncing... please wait until both layers are ready.${NC}"
   fi
 }
-
 
 
 access_controller() {
@@ -502,8 +520,6 @@ handle_choice() {
       create_directories
       write_compose_file
       start_services
-      monitor_sync
-      print_endpoints
       ;;
     2)
       if [ -f "$BASE_DIR/docker-compose.yml" ]; then
