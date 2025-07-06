@@ -322,6 +322,7 @@ check_node_status() {
 
 
 print_rpc_endpoints() {
+  IP_ADDR=$(curl -s ifconfig.me)
   echo -e "${CYAN}\n🔗 Ethereum Sepolia RPC Endpoints:${NC}"
   echo -e "${GREEN}📎 Geth:     http://$IP_ADDR:8545${NC}"
   echo -e "${GREEN}📎 Prysm:    http://$IP_ADDR:3500${NC}"
@@ -333,7 +334,11 @@ print_rpc_endpoints() {
     --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' http://$IP_ADDR:8545)
 
   if [[ "$geth_sync" == *"false"* ]]; then
-    echo -e "✅ ${GREEN}Geth (Execution Layer): Fully Synced!${NC}"
+    block_data=$(curl -s -X POST -H "Content-Type: application/json" \
+      --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://$IP_ADDR:8545)
+    current_hex=$(echo "$block_data" | jq -r '.result')
+    current_dec=$((16#${current_hex:2}))
+    echo -e "✅ ${GREEN}Geth (Execution Layer): Fully Synced at Block $current_dec!${NC}"
     geth_synced=true
   else
     current_hex=$(echo "$geth_sync" | jq -r '.result.currentBlock')
@@ -341,14 +346,17 @@ print_rpc_endpoints() {
 
     current_dec=$((16#${current_hex:2}))
     highest_dec=$((16#${highest_hex:2}))
-    percent=$(awk "BEGIN {printf \"%.2f\", ($current_dec/$highest_dec)*100}")
     remaining=$((highest_dec - current_dec))
+    percent=$(awk "BEGIN {printf \"%.2f\", ($current_dec/$highest_dec)*100}")
+    [[ $remaining -lt 0 ]] && remaining=0
+    [[ $percent == "nan" ]] && percent="0.00"
 
     echo -e "🔄 ${YELLOW}Geth Syncing...${NC}"
     echo -e "   ⏳ Current Block : $current_dec"
     echo -e "   🚀 Highest Block : $highest_dec"
     echo -e "   ⌛ Remaining      : $remaining blocks"
     echo -e "   📊 Progress       : ${GREEN}$percent%${NC}"
+
     geth_synced=false
   fi
 
@@ -359,7 +367,7 @@ print_rpc_endpoints() {
   head_slot=$(echo "$prysm_sync" | jq -r '.data.head_slot // "0"' 2>/dev/null)
 
   if [[ "$distance" == "0" ]]; then
-    echo -e "✅ ${GREEN}Prysm (Consensus Layer): Fully Synced ${NC}"
+    echo -e "✅ ${GREEN}Prysm (Consensus Layer): Fully Synced${NC}"
     prysm_synced=true
   else
     echo -e "🔄 ${YELLOW}Prysm Syncing...${NC}"
@@ -368,7 +376,7 @@ print_rpc_endpoints() {
     prysm_synced=false
   fi
 
-  # === Final Status ===
+  # === Final Combined Status ===
   if [[ "$geth_synced" == true && "$prysm_synced" == true ]]; then
     echo -e "\n${BLUE}🎉 Node is Fully Synced & Operational! — Powered by Aashish 💖 ✨${NC}"
   else
