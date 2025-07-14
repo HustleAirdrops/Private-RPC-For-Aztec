@@ -12,7 +12,7 @@ WHITE="\033[1;37m"
 NC="\033[0m"     # Reset / No Color
 BOLD="\033[1m"
 
-BASE_DIR="/opt/eth-rpc-node"
+BASE_DIR="$HOME/sepolia-node"
 JWT_PATH="$BASE_DIR/jwt.hex"
 
 # Fetch IP safely
@@ -114,7 +114,7 @@ check_ports() {
 }
 
 create_directories() {
-  echo -e "${YELLOW}📁 Creating directories...${NC}"
+  echo -e "${YELLOW}📁 Creating directory structure...${NC}"
   sudo mkdir -p "$BASE_DIR/execution" "$BASE_DIR/consensus"
   sudo rm -f "$JWT_PATH"
   sudo openssl rand -hex 32 | sudo tee "$JWT_PATH" > /dev/null
@@ -171,10 +171,8 @@ services:
       - --checkpoint-sync-url=https://checkpoint-sync.sepolia.ethpandaops.io
       - --genesis-beacon-api-url=https://checkpoint-sync.sepolia.ethpandaops.io
 EOF
-
-echo -e "${GREEN}✅ docker-compose.yml created successfully${NC}"
+  echo -e "${GREEN}✅ docker-compose.yml written${NC}"
 }
-
 
 start_services() {
   echo -e "${CYAN}🚀 Starting Ethereum Sepolia services...${NC}"
