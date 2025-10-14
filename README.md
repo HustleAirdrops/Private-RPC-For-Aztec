@@ -140,6 +140,7 @@ services:
             - --min-sync-peers=3
             - --checkpoint-sync-url=https://checkpoint-sync.sepolia.ethpandaops.io
             - --genesis-beacon-api-url=https://checkpoint-sync.sepolia.ethpandaops.io
+            - --subscribe-all-data-subnets
         logging:
             driver: "json-file"
             options:
