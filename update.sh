@@ -10,5 +10,5 @@ cp docker-compose.yml docker-compose.yml.bak.$(date +%F_%T)
 curl -o docker-compose.yml https://raw.githubusercontent.com/HustleAirdrops/Private-RPC-For-Aztec/main/docker-compose.yml
 
 # 4️⃣ Restart Docker Compose
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
