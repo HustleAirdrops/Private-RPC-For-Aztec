@@ -12,17 +12,3 @@ curl -o docker-compose.yml https://raw.githubusercontent.com/HustleAirdrops/Priv
 # 4️⃣ Restart Docker Compose
 docker-compose down
 docker-compose up -d
-
-echo "✅ Updated docker-compose.yml and restarted Docker Compose successfully."
-
-# 5️⃣ Signal governance proposal
-curl -X POST http://localhost:8880 \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "jsonrpc":"2.0",
-    "method":"nodeAdmin_setConfig",
-    "params":[{"governanceProposerPayload":"0x9D8869D17Af6B899AFf1d93F23f863FF41ddc4fa"}],
-    "id":1
-  }'
-
-echo "✅ Governance proposal vote sent successfully."
