@@ -82,7 +82,7 @@ Paste the following content in file:
 ```bash
 services:
     geth:
-        image: ethereum/client-go:stable
+        image: ethereum/client-go:v1.16.4
         container_name: geth
         network_mode: host
         restart: unless-stopped
@@ -113,7 +113,7 @@ services:
                 max-file: "3"
 
     prysm:
-        image: gcr.io/prysmaticlabs/prysm/beacon-chain
+        image: gcr.io/prysmaticlabs/prysm/beacon-chain:v6.1.2
         container_name: prysm
         network_mode: host
         restart: unless-stopped
